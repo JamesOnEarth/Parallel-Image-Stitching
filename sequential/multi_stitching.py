@@ -47,8 +47,8 @@ def crop(image):
 
     return image[y:y + h, x:x + w]
 
-# image_paths=['yosemite1.jpg', 'yosemite2.jpg', 'yosemite3.jpg', 'yosemite4.jpg']
-image_paths=['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg']
+image_paths=['yosemite1.jpg', 'yosemite2.jpg', 'yosemite3.jpg', 'yosemite4.jpg']
+# image_paths=['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg']
 # image_paths=['test1.jpg', 'yosemite3.jpg']
 
 imgs = []
@@ -56,9 +56,7 @@ imgs = []
 for i in range(len(image_paths)):
     img = cv2. imread(image_paths[i])
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    imgs.append(img)
-    output = Image.fromarray(img)
-    output.save(str(i) + "test.jpg")
+    imgs.append(img))
 
 start = time.time()
 
@@ -79,8 +77,6 @@ for i in range(1,len(imgs)):
     result[mask] = 0
     result += warp
    
-    inter = Image.fromarray(result)
-    inter.save(str(i) + "_inter.jpg")
     image = crop(result)
     
     output = Image.fromarray(image)
