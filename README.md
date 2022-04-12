@@ -84,6 +84,8 @@ Using a SIFT feature extractor and bruteforce matcher, and performing image stit
 
 Thus, we believe we should focus our main effort on parallelizing the finding and matching keypoint algorithms. We would like to experiment a little more with different feature extractors and matching algorithms, which we did not have the time to accomplish during this checkpoint. We would like to compare the parallelizability of the different feature extraction and matching algorithms, and potentially pick the most parallelizable.
 
+![output](https://raw.githubusercontent.com/JamesOnEarth/Parallel-Image-Stitching/main/sequential/3_output.jpg)
+
 For the ease of development, our milestone serial implementation was developed in Python, but we would like to shift the final serial implementation to a C++ version using OpenCV or native code. In the meantime, our current Python implementation implemented using OpenCV correctly splices multiple images. It is important to note that current homographic transforms are calculated with respect to the camera perspective of the first image, and the output can get glitchy when perspective between images differ a lot. We plan on implementing cylindrical perspective for our final implementation.
 
 ### Progress Evaluation
