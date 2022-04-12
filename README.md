@@ -68,3 +68,29 @@ week 5
 
 week 6
  - Project paper, presentation, and poster
+
+## Milestone
+
+### Progress Update
+We have been familiarizing ourselves with the various algorithms and steps in the image stitching process and have experimented with a sequential version of image stitching program we implemented using OpenCV in Python. We have been experimenting and timing the different steps in the image stitching process including finding keypoints, matching keypoints, and homographic transform.
+
+Using a SIFT feature extractor and bruteforce matcher, and performing image stitching on two images, we found that runtimes was roughly the follow.
+
+| Section      | Runtime | Percentage
+| -----------  | ----------- | - |
+| Finding Keypoints      | 0.14749s | 56.47%       |
+| Matching Keypoints   | 0.10617s        | 40.65%
+| Homographic Transform | 0.00752s | 2.28%
+
+Thus, we believe we should focus our main effort on parallelizing the finding and matching keypoint algorithms. We would like to experiment a little more with different feature extractors and matching algorithms, which we did not have the time to accomplish during this checkpoint. We would like to compare the parallelizability of the different feature extraction and matching algorithms, and potentially pick the most parallelizable.
+
+For the ease of development, our milestone serial implementation was developed in Python, but we would like to shift the final serial implementation to a C++ version using OpenCV or native code. In the meantime, our current Python implementation implemented using OpenCV correctly splices multiple images. It is important to note that current homographic transforms are calculated with respect to the camera perspective of the first image, and the output can get glitchy when perspective between images differ a lot. We plan on implementing cylindrical perspective for our final implementation.
+
+### Progress Evaluation
+We believe we are a little behind where we would like to be as stated in the proposal. We have implemented a sequential version but it is not implemented in C++ so it won't be as helpful for speedup comparison. We have been able to time the steps in the image stitching workflow, so we have been able to pinpoint sections that we should prioritize for speedup.
+
+### Deliverables
+We believe our current schedule is still achievable, and we do not need to make significant updates to our schedule. It is unlikely that we will be able to deliver our nice-to-have, but I believe we will can implement a CUDA version of an image stitching program. We plan on presenting input images and output panorama images from our program, as well as a graph of parallel speedup compared to sequential version for the poster session.
+
+### Concerns
+We do not have significant concerns because we have been able to find very helpful resources regarding image stitching algorithms. Our most significant problem right now is just coding and putting in the time to parallelize the algorithm.
