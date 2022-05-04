@@ -139,16 +139,23 @@ void findKeyPoints(Mat img, vector<KeyPoint> &keypoints, Mat &descriptors)
 
 void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matches)
 {
-    Ptr<BFMatcher> matcher = BFMatcher::create();
-    vector<vector<DMatch>> tmp_matches;
+    BFMatcher matcher(NORM_L2);
+    vector<DMatch> tmp_matches;
     //query descriptor, train descriptor
-    matcher->knnMatch(descriptors1, descriptors2, tmp_matches, 2);
+    matcher.match(descriptors1, descriptors2, tmp_matches);
 
-    for (int i = 0; i < tmp_matches.size(); i++)
+    double minDist = 100;
+    for (int i = 0; i < descriptors1.rows; i++) {
+        if(tmp_matches[i].distance < minDist) {
+            minDist = tmp_matches[i].distance;
+        }
+    }
+
+    for (int i = 0; i < descriptors1.rows; i++)
     {
-        if (tmp_matches[i][0].distance < 0.75f * tmp_matches[i][1].distance)
+        if (tmp_matches[i].distance < max(3 * minDist, 0.02))
         {
-            matches.push_back(tmp_matches[i][0]);
+            matches.push_back(tmp_matches[i]);
         }
     }
 }

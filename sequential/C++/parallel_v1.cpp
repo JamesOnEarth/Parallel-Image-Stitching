@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 4
+#define THREAD_NUM 2
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)
@@ -48,10 +48,10 @@ Mat cylin(Mat& img){
     {
         for(int x = 0; x < width; x++)
         {
-            Point2f current_pos(x,y);
+            cv::Point2f current_pos(x,y);
             current_pos = convert_pt(current_pos, width, height);
 
-            Point2i top_left((int)current_pos.x,(int)current_pos.y); //top left because of integer rounding
+            cv::Point2i top_left((int)current_pos.x,(int)current_pos.y); //top left because of integer rounding
 
             //make sure the point is actually inside the original image
             if(top_left.x < 0 ||
@@ -140,25 +140,16 @@ void findKeyPoints(Mat img, vector<KeyPoint> &keypoints, Mat &descriptors)
 
 void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matches)
 {
-    FlannBasedMatcher matcher;
-    vector<DMatch> tmp_matches;
+    Ptr<BFMatcher> matcher = BFMatcher::create();
+    vector<vector<DMatch>> tmp_matches;
     //query descriptor, train descriptor
-    matcher.match(descriptors1, descriptors2, tmp_matches);
+    matcher->knnMatch(descriptors1, descriptors2, tmp_matches, 2);
 
-    double minDist = 100;
-    for (int i = 0; i < descriptors1.rows; i++) {
-        double dist = tmp_matches[i].distance;
-        if(dist < minDist) {
-            minDist = dist;
-        }
-    }
-
-
-    for (int i = 0; i < descriptors1.rows; i++)
+    for (int i = 0; i < tmp_matches.size(); i++)
     {
-        if (tmp_matches[i].distance < max(3 * minDist, 0.02))
+        if (tmp_matches[i][0].distance < 0.75f * tmp_matches[i][1].distance)
         {
-            matches.push_back(tmp_matches[i]);
+            matches.push_back(tmp_matches[i][0]);
         }
     }
 }
@@ -288,7 +279,6 @@ int main()
     vector<DMatch> matches[MAX_IMG - 1];
     auto matchStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared)
     for (int i = 0; i < numOfImages - 1; i++) {
         matchKeyPoints(descriptors[i], descriptors[i+1], matches[i]);
     }
