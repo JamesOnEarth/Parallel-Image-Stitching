@@ -235,6 +235,7 @@ void stitch(Mat &src,Mat &warp,int midline){
 int main()
 {
     int numOfImages = 4;
+    
     const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
     // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg"};
     // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg"};

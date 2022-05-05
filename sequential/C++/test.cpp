@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 4
+#define THREAD_NUM 2
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)
@@ -32,9 +32,10 @@ Point2f convert_pt(Point2f point,int w,int h)
 }
 
 
-Mat cylin(Mat& img){
+Mat cylindrical(Mat& img){
     int width=img.cols;
     int height=img.rows;
+
     Mat tmpimg(img.size(),CV_8UC3);
 
     int minx=img.cols /2;
@@ -103,7 +104,6 @@ Mat cylin(Mat& img){
 	return tmpimg;
 }
 
-
 Mat cropImage(Mat &img)
 {
     int top=0;
@@ -152,6 +152,7 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
         }
     }
 
+
     for (int i = 0; i < descriptors1.rows; i++)
     {
         if (tmp_matches[i].distance < max(3 * minDist, 0.02))
@@ -163,6 +164,11 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
 
 void getHomography(vector<KeyPoint>& keypoints1, vector<KeyPoint>& keypoints2, vector<DMatch>& matches, Mat &homography)
 {
+    if (matches.size() < 4)
+    {
+        cout << "Not enough matches" << endl;
+        return;
+    }
     vector<Point2f> points1, points2;
     for (int i = 0; i < matches.size(); i++)
     {
@@ -217,7 +223,6 @@ void getHomography(vector<KeyPoint>& keypoints1, vector<KeyPoint>& keypoints2, v
 
 
 void stitch(Mat &src,Mat &warp,int midline){
-    #prgama omp parallel for
 	for(int i=0;i<src.rows;i++){
 		for(int j=0;j<src.cols;j++){
 			if(j <= midline){
@@ -235,17 +240,19 @@ int main()
 
     int numOfImages = 4;
     const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg"};
+    // const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
     Mat descriptors[MAX_IMG];
 
+    int cylindricalDuration = 0;
     int keypointsDuration = 0;
     int matchDuration = 0;
     int transformDuration = 0; 
     int totalDuration = 0;
+    int stitchDuration = 0;
+    int cropDuration = 0;
 
     auto allStart = high_resolution_clock::now();
 
@@ -255,18 +262,24 @@ int main()
 
     auto compStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared) schedule(dynamic)
+    auto cylindricalStart = high_resolution_clock::now();
+
+    #pragma omp parallel for default(shared)
     for (int i = 0; i < numOfImages; i++) {
         Mat img = imgs_color[i];        
        
         resize(img, img, Size(img.cols / 3, img.rows / 3));
         copyMakeBorder(img, img, 100, 100, 100, 100, BORDER_CONSTANT);
         
-        img = cylin(img);
+        img = cylindrical(img);
         imgs_color[i] = img;
         cvtColor(img, img, COLOR_BGR2GRAY);
         imgs[i] = img;
     }
+
+    auto cylindricalStop  = high_resolution_clock::now();
+
+    cylindricalDuration = duration_cast<milliseconds>(cylindricalStop - cylindricalStart).count();
 
     auto keypointStart = high_resolution_clock::now();
 
@@ -282,7 +295,7 @@ int main()
     vector<DMatch> matches[MAX_IMG - 1];
     auto matchStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for default(shared) schedule(dynamic)
     for (int i = 0; i < numOfImages - 1; i++) {
         matchKeyPoints(descriptors[i], descriptors[i+1], matches[i]);
     }
@@ -303,32 +316,54 @@ int main()
 
     transformDuration = duration_cast<milliseconds>(transformStop - transformStart).count();
 
-    Mat result = imgs_color[0];
-    int dx = 0;
-    int dy = 0;
+    auto stitchStart = high_resolution_clock::now();
+    
+    Mat results[MAX_IMG / 2];
+    int dx[MAX_IMG / 2];
+    int dy[MAX_IMG / 2];
 
-    for (int i = numOfImages; i < numOfImages - 1; i++){
-        homographies[i].ptr<double>(0)[2] += dx;
-		homographies[i].ptr<double>(1)[2] += dy;
-		dx = homographies[i].ptr<double>(0)[2];
-		dy = homographies[i].ptr<double>(1)[2];
-
-        int mRows = max(result.rows, imgs_color[i+1].rows + int(homographies[i].ptr<double>(1)[2]));
-		int mCols = imgs_color[i+1].cols + int(homographies[i].ptr<double>(0)[2]);
-		int midline = (result.cols + int(homographies[i].ptr<double>(0)[2])) / 2;
-
-        Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
-        warpAffine(imgs_color[i+1], warp, homographies[i], Size(mCols, mRows));
-		stitch(result, warp, midline);
-
-        result = warp;    
+    for (int i = 0; i < numOfImages; i++) {
+        results[i] = imgs_color[i];
+        dx[i] = 0;
+        dy[i] = 0;
     }
 
-    result = cropImage(result);
+    for (int i = numOfImages; i > 1; i /= 2){
+        #pragma omp parallel for default(shared) schedule(dynamic)
+        for (int j = 0; j < i / 2; j++){
+            homographies[j * 2].ptr<double>(0)[2] += dx[j * 2];
+            homographies[j * 2].ptr<double>(1)[2] += dy[j * 2];
+            dx[j * 2] = homographies[j * 2].ptr<double>(0)[2];
+            dy[j * 2] = homographies[j * 2].ptr<double>(1)[2];
+
+            int mRows = max(results[j * 2].rows, results[j * 2 + 1].rows + int(homographies[j * 2].ptr<double>(1)[2]));
+            int mCols = results[j * 2 + 1].cols + int(homographies[j * 2].ptr<double>(0)[2]);
+            int midline = (results[j * 2].cols + int(homographies[j * 2].ptr<double>(0)[2])) / 2;
+
+            Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
+            warpAffine(results[j * 2 + 1], warp, homographies[j * 2], Size(mCols, mRows));
+            stitch(results[j * 2], warp, midline);
+
+            results[j] = warp;    
+        }
+    }
+
+    auto stitchStop = high_resolution_clock::now();
+
+    stitchDuration = duration_cast<milliseconds>(stitchStop - stitchStart).count();
+
+    auto cropStart = high_resolution_clock::now();
+
+    results[0] = cropImage(results[0]);
+
+    auto cropEnd = high_resolution_clock::now();
+
+    cropDuration = duration_cast<milliseconds>(cropEnd - cropStart).count();
 
     auto compEnd = high_resolution_clock::now();
 
-    imwrite("images/parallel.jpg", result);
+    // imwrite("images/parallel.jpg", result);
+    imwrite("tepper/parallel_v2.jpg", results[0]);
 
     auto allEnd = high_resolution_clock::now();
 
@@ -337,8 +372,10 @@ int main()
 
     cout << "Total Elapsed Time: " << duration << " ms" << endl;
     cout << "Computational Time " << compDuration << " ms" << endl;
+    cout << "Cylindrical: " << cylindricalDuration << " ms" << endl;
     cout << "Keypoints: " << keypointsDuration << " ms" << endl;
     cout << "Matching: " << matchDuration << " ms" << endl;
     cout << "Transform: " << transformDuration << " ms" << endl;
-
+    cout << "Stitching: " << stitchDuration << " ms" << endl;
+    cout << "Cropping " << cropDuration << " ms" << endl;
 }

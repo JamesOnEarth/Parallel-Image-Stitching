@@ -5,14 +5,19 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp> 
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
+
 using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
 #define THREAD_NUM 4
 #define MAX_IMG 50
+#define BLOCKWIDTH 32
 
-Point2f convert_pt(Point2f point,int w,int h)
+__global__ Point2f convert_pt(Point2f point,int w,int h)
 {
     //center the point at 0,0
     Point2f pc(point.x-w/2,point.y-h/2);
@@ -32,74 +37,92 @@ Point2f convert_pt(Point2f point,int w,int h)
 }
 
 
-Mat cylin(Mat& img){
+__global__ void transform_pixel() {
+    int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
+    int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (pixelX < width && pixelY < height)
+    {
+        Point2f current_pos(pixelX, pixelY);
+        current_pos = convert_pt(current_pos, width, height);
+        Point2i top_left((int)current_pos.x,(int)current_pos.y); //top left because of integer rounding
+        //make sure the point is actually inside the original image
+        if(top_left.x < 0 ||
+        top_left.x > width-2 ||
+        top_left.y < 0 ||
+        top_left.y > height-2)
+        {
+            continue;
+        }
+
+        //bilinear interpolation
+        float dx = current_pos.x-top_left.x;
+        float dy = current_pos.y-top_left.y;
+
+        float weight_tl = (1.0 - dx) * (1.0 - dy);
+        float weight_tr = (dx)       * (1.0 - dy);
+        float weight_bl = (1.0 - dx) * (dy);
+        float weight_br = (dx)       * (dy);
+
+        uchar valueR =   weight_tl * img.at<Vec3b>(top_left)[0] +
+        weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[0] +
+        weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[0] +
+        weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[0];
+
+        uchar valueG =   weight_tl * img.at<Vec3b>(top_left)[1] +
+        weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[1] +
+        weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[1] +
+        weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[1];
+
+        uchar valueB =   weight_tl * img.at<Vec3b>(top_left)[2] +
+        weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[2] +
+        weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[2] +
+        weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[2];
+
+        tmpimg.at<Vec3b>(y,x)[0] = valueR;
+        tmpimg.at<Vec3b>(y,x)[1] = valueG;
+        tmpimg.at<Vec3b>(y,x)[2] = valueB;
+    }
+}
+
+Mat cylindrical(Mat& img){
+
+    //convert to cuda images
+    cv::cuda::GpuMat d_src(img);
+	cv::cuda::GpuMat d_dstGpu(img.size(), img.type());
+
+
     int width=img.cols;
     int height=img.rows;
-    Mat tmpimg(img.size(),CV_8UC3);
+    int N = width * height;
+    Mat flat = image.reshape(1, N);
+    auto * ptr = flat.data; 
+    std::vector<uchar> vec(flat.data, flat.data + flat.total());
+    
+    double xCil, yCil, xImg, yImg;
+    Mat result(img.size(),CV_8UC3);
+
+    float *tmpimg;
+    float *outimg;
+    cudaMalloc(&outimg, img.size()*sizeof(float));
+    cudaMalloc(&tmpimg, img.size()*sizeof(float));
 
     int minx=img.cols /2;
     int maxx=img.cols/2;
     int miny=img.rows/2;
     int maxy=img.rows/2;
 
+    dim3 blockDim(BLOCKWIDTH, BLOCKWIDTH);
+    dim3 gridDim(
+        (width + blockDim.x - 1) / blockDim.x,
+        (height + blockDim.y -1) / blockDim.y
+    );
+    transform_pixel<<<gridDim, blockDim>>>(N, 2.0f, d_x, d_y);
 
-    for(int y = 0; y < height; y++)
-    {
-        for(int x = 0; x < width; x++)
-        {
-            Point2f current_pos(x,y);
-            current_pos = convert_pt(current_pos, width, height);
-
-            Point2i top_left((int)current_pos.x,(int)current_pos.y); //top left because of integer rounding
-
-            //make sure the point is actually inside the original image
-            if(top_left.x < 0 ||
-            top_left.x > width-2 ||
-            top_left.y < 0 ||
-            top_left.y > height-2)
-            {
-                continue;
-            }
-
-            //bilinear interpolation
-            float dx = current_pos.x-top_left.x;
-            float dy = current_pos.y-top_left.y;
-
-            float weight_tl = (1.0 - dx) * (1.0 - dy);
-            float weight_tr = (dx)       * (1.0 - dy);
-            float weight_bl = (1.0 - dx) * (dy);
-            float weight_br = (dx)       * (dy);
-
-            uchar valueR =   weight_tl * img.at<Vec3b>(top_left)[0] +
-            weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[0] +
-            weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[0] +
-            weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[0];
-
-            uchar valueG =   weight_tl * img.at<Vec3b>(top_left)[1] +
-            weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[1] +
-            weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[1] +
-            weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[1];
-
-            uchar valueB =   weight_tl * img.at<Vec3b>(top_left)[2] +
-            weight_tr * img.at<Vec3b>(top_left.y,top_left.x+1)[2] +
-            weight_bl * img.at<Vec3b>(top_left.y+1,top_left.x)[2] +
-            weight_br * img.at<Vec3b>(top_left.y+1,top_left.x+1)[2];
-
-            if(valueR>0 || valueG > 0 || valueB > 0){
-                maxx=max(maxx,x);
-                minx=min(minx,x);
-                maxy=max(maxy,y);
-                miny=min(miny,y);
-            }
-
-            tmpimg.at<Vec3b>(y,x)[0] = valueR;
-            tmpimg.at<Vec3b>(y,x)[1] = valueG;
-            tmpimg.at<Vec3b>(y,x)[2] = valueB;
-        }
-    }
-
-    tmpimg = tmpimg(Range(miny, maxy), Range(minx, maxx));
-
+    cudaMemcpy(result, outimg, N*sizeof(Vec3b), cudaMemcpyDeviceToHost);
+    result = result(Range(miny, maxy), Range(minx, maxx));
+    cudaFree(tmpimg);
+    cudaFree(outimg);
 	return tmpimg;
 }
 
@@ -152,6 +175,7 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
         }
     }
 
+
     for (int i = 0; i < descriptors1.rows; i++)
     {
         if (tmp_matches[i].distance < max(3 * minDist, 0.02))
@@ -163,6 +187,11 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
 
 void getHomography(vector<KeyPoint>& keypoints1, vector<KeyPoint>& keypoints2, vector<DMatch>& matches, Mat &homography)
 {
+    if (matches.size() < 4)
+    {
+        cout << "Not enough matches" << endl;
+        return;
+    }
     vector<Point2f> points1, points2;
     for (int i = 0; i < matches.size(); i++)
     {
@@ -217,7 +246,6 @@ void getHomography(vector<KeyPoint>& keypoints1, vector<KeyPoint>& keypoints2, v
 
 
 void stitch(Mat &src,Mat &warp,int midline){
-    #prgama omp parallel for
 	for(int i=0;i<src.rows;i++){
 		for(int j=0;j<src.cols;j++){
 			if(j <= midline){
@@ -233,19 +261,21 @@ int main()
 {
     omp_set_num_threads(THREAD_NUM);
 
-    int numOfImages = 4;
-    const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg"};
+    int numOfImages = 12;
+    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
+    const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
     Mat descriptors[MAX_IMG];
 
+    int cylindricalDuration = 0;
     int keypointsDuration = 0;
     int matchDuration = 0;
     int transformDuration = 0; 
     int totalDuration = 0;
+    int stitchDuration = 0;
+    int cropDuration = 0;
 
     auto allStart = high_resolution_clock::now();
 
@@ -255,18 +285,24 @@ int main()
 
     auto compStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared) schedule(dynamic)
+    auto cylindricalStart = high_resolution_clock::now();
+
+    #pragma omp parallel for default(shared)
     for (int i = 0; i < numOfImages; i++) {
         Mat img = imgs_color[i];        
        
         resize(img, img, Size(img.cols / 3, img.rows / 3));
         copyMakeBorder(img, img, 100, 100, 100, 100, BORDER_CONSTANT);
         
-        img = cylin(img);
+        img = cylindrical(img);
         imgs_color[i] = img;
         cvtColor(img, img, COLOR_BGR2GRAY);
         imgs[i] = img;
     }
+
+    auto cylindricalStop  = high_resolution_clock::now();
+
+    cylindricalDuration = duration_cast<milliseconds>(cylindricalStop - cylindricalStart).count();
 
     auto keypointStart = high_resolution_clock::now();
 
@@ -282,7 +318,7 @@ int main()
     vector<DMatch> matches[MAX_IMG - 1];
     auto matchStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for default(shared) schedule(dynamic)
     for (int i = 0; i < numOfImages - 1; i++) {
         matchKeyPoints(descriptors[i], descriptors[i+1], matches[i]);
     }
@@ -307,28 +343,44 @@ int main()
     int dx = 0;
     int dy = 0;
 
-    for (int i = numOfImages; i < numOfImages - 1; i++){
-        homographies[i].ptr<double>(0)[2] += dx;
-		homographies[i].ptr<double>(1)[2] += dy;
-		dx = homographies[i].ptr<double>(0)[2];
-		dy = homographies[i].ptr<double>(1)[2];
+    auto stitchStart = high_resolution_clock::now();
+    
+    // for (int i = numOfImages; i > 1; i /= 2){
+        for (int i = 0; i < numOfImages / 2; i++){
+            homographies[i*2].ptr<double>(0)[2] += dx;
+            homographies[i*2].ptr<double>(1)[2] += dy;
+            dx = homographies[i].ptr<double>(0)[2];
+            dy = homographies[i].ptr<double>(1)[2];
 
-        int mRows = max(result.rows, imgs_color[i+1].rows + int(homographies[i].ptr<double>(1)[2]));
-		int mCols = imgs_color[i+1].cols + int(homographies[i].ptr<double>(0)[2]);
-		int midline = (result.cols + int(homographies[i].ptr<double>(0)[2])) / 2;
+            int mRows = max(result.rows, imgs_color[i+1].rows + int(homographies[i].ptr<double>(1)[2]));
+            int mCols = imgs_color[i+1].cols + int(homographies[i].ptr<double>(0)[2]);
+            int midline = (result.cols + int(homographies[i].ptr<double>(0)[2])) / 2;
 
-        Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
-        warpAffine(imgs_color[i+1], warp, homographies[i], Size(mCols, mRows));
-		stitch(result, warp, midline);
+            Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
+            warpAffine(imgs_color[i+1], warp, homographies[i], Size(mCols, mRows));
+            stitch(result, warp, midline);
 
-        result = warp;    
-    }
+            result = warp;    
+        }
+    // }
+
+
+    auto stitchStop = high_resolution_clock::now();
+
+    stitchDuration = duration_cast<milliseconds>(stitchStop - stitchStart).count();
+
+    auto cropStart = high_resolution_clock::now();
 
     result = cropImage(result);
 
+    auto cropEnd = high_resolution_clock::now();
+
+    cropDuration = duration_cast<milliseconds>(cropEnd - cropStart).count();
+
     auto compEnd = high_resolution_clock::now();
 
-    imwrite("images/parallel.jpg", result);
+    // imwrite("images/parallel.jpg", result);
+    imwrite("uc/parallel.jpg", result);
 
     auto allEnd = high_resolution_clock::now();
 
@@ -337,8 +389,10 @@ int main()
 
     cout << "Total Elapsed Time: " << duration << " ms" << endl;
     cout << "Computational Time " << compDuration << " ms" << endl;
+    cout << "Cylindrical: " << cylindricalDuration << " ms" << endl;
     cout << "Keypoints: " << keypointsDuration << " ms" << endl;
     cout << "Matching: " << matchDuration << " ms" << endl;
     cout << "Transform: " << transformDuration << " ms" << endl;
-
+    cout << "Stitching: " << stitchDuration << " ms" << endl;
+    cout << "Cropping " << cropDuration << " ms" << endl;
 }
