@@ -15,5 +15,5 @@ git: git.cpp
 parallel: parallel_stitching.cpp
 	g++ -fopenmp $(CFLAGS) -std=c++11 parallel_stitching.cpp -o parallel $(LIBS) $(CFLAGS)
 
-test: test.cpp
-	g++ -fopenmp $(CFLAGS) -std=c++11 test.cpp -o test $(LIBS) $(CFLAGS)
+parallel_stitch: parallel_stitch.cpp
+	g++ -fopenmp $(CFLAGS) -std=c++11 parallel_stitch.cpp -o parallel_stitch $(LIBS) $(CFLAGS)

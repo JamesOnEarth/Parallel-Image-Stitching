@@ -238,9 +238,9 @@ int main()
 {
     omp_set_num_threads(THREAD_NUM);
 
-    int numOfImages = 4;
-    const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
-    // const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
+    int numOfImages = 12;
+    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
+    const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -362,8 +362,8 @@ int main()
 
     auto compEnd = high_resolution_clock::now();
 
-    // imwrite("images/parallel.jpg", result);
-    imwrite("tepper/parallel_v2.jpg", results[0]);
+    imwrite("uc/parallel_v2.jpg", results[0]);
+    // imwrite("tepper/parallel_v2.jpg", results[0]);
 
     auto allEnd = high_resolution_clock::now();
 

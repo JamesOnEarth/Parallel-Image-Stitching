@@ -4,7 +4,6 @@
 #include <omp.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp> 
-#include <device_launch_parameters.h>
 
 using namespace std;
 using namespace cv;
@@ -240,9 +239,9 @@ int main()
 {
     omp_set_num_threads(THREAD_NUM);
 
-    int numOfImages = 4;
-    const char *images[numOfImages] = {"tepper/1.jpg", "tepper/2.jpg", "tepper/3.jpg", "tepper/4.jpg"};
-    // const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
+    int numOfImages = 12;
+    // const char *images[numOfImages] = {"tepper/1.jpg", "tepper/2.jpg", "tepper/3.jpg", "tepper/4.jpg"};
+    const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -324,25 +323,22 @@ int main()
 
     auto stitchStart = high_resolution_clock::now();
     
-    // for (int i = numOfImages; i > 1; i /= 2){
-        for (int i = 0; i < numOfImages / 2; i++){
-            homographies[i*2].ptr<double>(0)[2] += dx;
-            homographies[i*2].ptr<double>(1)[2] += dy;
-            dx = homographies[i].ptr<double>(0)[2];
-            dy = homographies[i].ptr<double>(1)[2];
+    for (int i = 0; i < numOfImages - 1; i++){
+        homographies[i].ptr<double>(0)[2] += dx;
+		homographies[i].ptr<double>(1)[2] += dy;
+		dx = homographies[i].ptr<double>(0)[2];
+		dy = homographies[i].ptr<double>(1)[2];
 
-            int mRows = max(result.rows, imgs_color[i+1].rows + int(homographies[i].ptr<double>(1)[2]));
-            int mCols = imgs_color[i+1].cols + int(homographies[i].ptr<double>(0)[2]);
-            int midline = (result.cols + int(homographies[i].ptr<double>(0)[2])) / 2;
+        int mRows = max(result.rows, imgs_color[i+1].rows + int(homographies[i].ptr<double>(1)[2]));
+		int mCols = imgs_color[i+1].cols + int(homographies[i].ptr<double>(0)[2]);
+		int midline = (result.cols + int(homographies[i].ptr<double>(0)[2])) / 2;
 
-            Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
-            warpAffine(imgs_color[i+1], warp, homographies[i], Size(mCols, mRows));
-            stitch(result, warp, midline);
+        Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
+        warpAffine(imgs_color[i+1], warp, homographies[i], Size(mCols, mRows));
+		stitch(result, warp, midline);
 
-            result = warp;    
-        }
-    // }
-
+        result = warp;    
+    }
 
     auto stitchStop = high_resolution_clock::now();
 
@@ -358,8 +354,8 @@ int main()
 
     auto compEnd = high_resolution_clock::now();
 
-    // imwrite("images/parallel.jpg", result);
-    imwrite("tepper/parallel.jpg", result);
+    imwrite("uc/parallel.jpg", result);
+    // imwrite("tepper/parallel.jpg", result);
 
     auto allEnd = high_resolution_clock::now();
 
