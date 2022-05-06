@@ -1,7 +1,7 @@
 import cv2
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 # SIFT feature extraction
 def findKeyPoints(image):
@@ -38,13 +38,13 @@ def getHomography(kp1, kp2, img1, img2, matches):
     return (img1, img2, H, status)
 
 
-# image_paths=['yosemite1.jpg', 'yosemite2.jpg', 'yosemite3.jpg', 'yosemite4.jpg']
-image_paths=['yosemite1.jpg', 'yosemite2.jpg']
+#image_paths=['yosemite1.jpg', 'yosemite2.jpg', 'yosemite3.jpg', 'yosemite4.jpg']
+image_paths=['1.jpg', '2.jpg']
 
 imgs = []
 
 for i in range(len(image_paths)):
-    img = cv2. imread(image_paths[i])
+    img = cv2.imread(image_paths[i])
     imgs.append(img)
 
 start = time.time()
@@ -55,7 +55,7 @@ for i in range(len(imgs)):
     (kp, feature) = findKeyPoints(imgs[i])
     kps.append(kp)
     features.append(feature)
-    # cv2.imwrite('keypoints' + str(i) + ".jpg",cv2.drawKeypoints(imgs[i], kp, None))
+    cv2.imwrite('keypoints' + str(i) + ".jpg",cv2.drawKeypoints(imgs[i], kp, None))
 
 end = time.time()
 
@@ -110,6 +110,6 @@ for i in range(len(homographies)):
     result = cv2.warpPerspective(homographies[i][1], homographies[i][2], (width, height))
     result[0:homographies[i][0].shape[0], 0:homographies[i][0].shape[1]] = homographies[i][0]
 
-plt.figure(figsize=(20,10))
-plt.imshow(result)
-plt.savefig('output.jpg')
+#plt.figure(figsize=(20,10))
+#plt.imshow(result)
+#plt.savefig('output.jpg')

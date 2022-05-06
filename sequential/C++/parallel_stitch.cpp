@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 2
+#define THREAD_NUM 1
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)
@@ -155,7 +155,7 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
 
     for (int i = 0; i < descriptors1.rows; i++)
     {
-        if (tmp_matches[i].distance < max(3 * minDist, 0.02))
+        if (tmp_matches[i].distance < max(5 * minDist, 0.02))
         {
             matches.push_back(tmp_matches[i]);
         }
@@ -238,9 +238,16 @@ int main()
 {
     omp_set_num_threads(THREAD_NUM);
 
-    int numOfImages = 12;
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
-    const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
+    int numOfImages = 4;
+    const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
+    // const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", 
+    //                                       "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg"}; 
+    // const char *images[numOfImages] = {"lounge/lounge_1.jpg", "lounge/lounge_2.jpg", "lounge/lounge_3.jpg",
+    //                                    "lounge/lounge_4.jpg", "lounge/lounge_5.jpg", "lounge/lounge_6.jpg",
+    //                                    "lounge/lounge_7.jpg", "lounge/lounge_8.jpg", "lounge/lounge_9.jpg", 
+    //                                    "lounge/lounge_10.jpg", "lounge/lounge_11.jpg", "lounge/lounge_12.jpg", 
+    //                                    "lounge/lounge_13.jpg", "lounge/lounge_14.jpg", "lounge/lounge_15.jpg", 
+    //                                    "lounge/lounge_16.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -319,23 +326,15 @@ int main()
     auto stitchStart = high_resolution_clock::now();
     
     Mat results[MAX_IMG / 2];
-    int dx[MAX_IMG / 2];
-    int dy[MAX_IMG / 2];
+    Mat warps[MAX_IMG / 2];
 
     for (int i = 0; i < numOfImages; i++) {
         results[i] = imgs_color[i];
-        dx[i] = 0;
-        dy[i] = 0;
     }
 
     for (int i = numOfImages; i > 1; i /= 2){
-        #pragma omp parallel for default(shared) schedule(dynamic)
-        for (int j = 0; j < i / 2; j++){
-            homographies[j * 2].ptr<double>(0)[2] += dx[j * 2];
-            homographies[j * 2].ptr<double>(1)[2] += dy[j * 2];
-            dx[j * 2] = homographies[j * 2].ptr<double>(0)[2];
-            dy[j * 2] = homographies[j * 2].ptr<double>(1)[2];
-
+        #pragma omp parallel for default(shared)
+        for (int j = 0; j < i / 2; j++) {
             int mRows = max(results[j * 2].rows, results[j * 2 + 1].rows + int(homographies[j * 2].ptr<double>(1)[2]));
             int mCols = results[j * 2 + 1].cols + int(homographies[j * 2].ptr<double>(0)[2]);
             int midline = (results[j * 2].cols + int(homographies[j * 2].ptr<double>(0)[2])) / 2;
@@ -344,7 +343,15 @@ int main()
             warpAffine(results[j * 2 + 1], warp, homographies[j * 2], Size(mCols, mRows));
             stitch(results[j * 2], warp, midline);
 
-            results[j] = warp;    
+            warps[j] = warp;    
+        }
+
+        for (int j = 0; j < i / 2; j++) {
+            results[j] = warps[j];
+            if (j != i / 2 - 1) {
+                homographies[j].ptr<double>(0)[2] = homographies[j * 2].ptr<double>(0)[2] + homographies[j * 2 + 1].ptr<double>(0)[2];
+                homographies[j].ptr<double>(1)[2] = homographies[j * 2].ptr<double>(1)[2] + homographies[j * 2 + 1].ptr<double>(1)[2];
+            }
         }
     }
 
@@ -362,7 +369,8 @@ int main()
 
     auto compEnd = high_resolution_clock::now();
 
-    imwrite("uc/parallel_v2.jpg", results[0]);
+    // imwrite("uc/parallel_v2.jpg", results[0]);
+    imwrite("lounge/parallel_v2.jpg", results[0]);
     // imwrite("tepper/parallel_v2.jpg", results[0]);
 
     auto allEnd = high_resolution_clock::now();

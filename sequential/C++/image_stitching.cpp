@@ -153,7 +153,7 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
 
     for (int i = 0; i < descriptors1.rows; i++)
     {
-        if (tmp_matches[i].distance < max(3 * minDist, 0.02))
+        if (tmp_matches[i].distance < max(5 * minDist, 0.02))
         {
             matches.push_back(tmp_matches[i]);
         }
@@ -234,11 +234,17 @@ void stitch(Mat &src,Mat &warp,int midline){
 
 int main()
 {
-    int numOfImages = 4;
+    int numOfImages = 16;
     
-    const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg"};
-    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg"};
+    // const char *images[numOfImages] = {"images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg"};
+    // const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", 
+    //                                       "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg"};
+    const char *images[numOfImages] = {"lounge/lounge_1.jpg", "lounge/lounge_2.jpg", "lounge/lounge_3.jpg",
+                                       "lounge/lounge_4.jpg", "lounge/lounge_5.jpg", "lounge/lounge_6.jpg",
+                                       "lounge/lounge_7.jpg", "lounge/lounge_8.jpg", "lounge/lounge_9.jpg", 
+                                       "lounge/lounge_10.jpg", "lounge/lounge_11.jpg", "lounge/lounge_12.jpg", 
+                                       "lounge/lounge_13.jpg", "lounge/lounge_14.jpg", "lounge/lounge_15.jpg", 
+                                       "lounge/lounge_16.jpg"}; 
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -270,9 +276,11 @@ int main()
     }
 
     auto keypointStart = high_resolution_clock::now();
+
     for (int i = 0; i < numOfImages; i++) {
         findKeyPoints(imgs[i], keypoints[i], descriptors[i]);
     }
+
     auto keypointStop = high_resolution_clock::now();
 
     keypointsDuration = duration_cast<milliseconds>(keypointStop - keypointStart).count();
@@ -289,7 +297,6 @@ int main()
         auto stop = high_resolution_clock::now();
 
         matchDuration += duration_cast<milliseconds>(stop - start).count();
-
         Mat homography;
 
         start = high_resolution_clock::now();
@@ -318,7 +325,8 @@ int main()
 
     auto compEnd = high_resolution_clock::now();
 
-    imwrite("images/result.jpg", result);
+    // imwrite("images/result.jpg", result);
+    imwrite("uc/serial.jpg", result);
 
     auto allEnd = high_resolution_clock::now();
 

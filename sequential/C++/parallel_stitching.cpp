@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 2
+#define THREAD_NUM 1
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)
@@ -156,7 +156,7 @@ void matchKeyPoints(Mat &descriptors1, Mat &descriptors2, vector<DMatch> &matche
 
     for (int i = 0; i < descriptors1.rows; i++)
     {
-        if (tmp_matches[i].distance < max(3 * minDist, 0.02))
+        if (tmp_matches[i].distance < max(5 * minDist, 0.02))
         {
             matches.push_back(tmp_matches[i]);
         }
@@ -239,9 +239,17 @@ int main()
 {
     omp_set_num_threads(THREAD_NUM);
 
-    int numOfImages = 12;
+    int numOfImages = 16;
     // const char *images[numOfImages] = {"tepper/1.jpg", "tepper/2.jpg", "tepper/3.jpg", "tepper/4.jpg"};
-    const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg", "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"};
+    /* const char *images[numOfImages] = {"uc/uc_1.jpg", "uc/uc_2.jpg", "uc/uc_3.jpg", "uc/uc_4.jpg", 
+                                          "uc/uc_5.jpg", "uc/uc_6.jpg", "uc/uc_7.jpg", "uc/uc_8.jpg",
+                                          "uc/uc_9.jpg", "uc/uc_10.jpg", "uc/uc_11.jpg", "uc/uc_12.jpg"}; */
+    const char *images[numOfImages] = {"lounge/lounge_1.jpg", "lounge/lounge_2.jpg", "lounge/lounge_3.jpg",
+                                       "lounge/lounge_4.jpg", "lounge/lounge_5.jpg", "lounge/lounge_6.jpg",
+                                       "lounge/lounge_7.jpg", "lounge/lounge_8.jpg", "lounge/lounge_9.jpg", 
+                                       "lounge/lounge_10.jpg", "lounge/lounge_11.jpg", "lounge/lounge_12.jpg", 
+                                       "lounge/lounge_13.jpg", "lounge/lounge_14.jpg", "lounge/lounge_15.jpg", 
+                                       "lounge/lounge_16.jpg"}; 
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -354,8 +362,9 @@ int main()
 
     auto compEnd = high_resolution_clock::now();
 
-    imwrite("uc/parallel.jpg", result);
+    // imwrite("uc/parallel.jpg", result);
     // imwrite("tepper/parallel.jpg", result);
+    imwrite("lounge/parallel.jpg", result);
 
     auto allEnd = high_resolution_clock::now();
 
