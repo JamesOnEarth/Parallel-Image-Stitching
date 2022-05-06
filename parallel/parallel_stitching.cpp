@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 1
+#define THREAD_NUM 2
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)

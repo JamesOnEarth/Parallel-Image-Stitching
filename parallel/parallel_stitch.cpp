@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 using namespace std::chrono;
 
-#define THREAD_NUM 1
+#define THREAD_NUM 8
 #define MAX_IMG 50
 
 Point2f convert_pt(Point2f point,int w,int h)
@@ -248,6 +248,18 @@ int main()
     //                                    "lounge/lounge_10.jpg", "lounge/lounge_11.jpg", "lounge/lounge_12.jpg", 
     //                                    "lounge/lounge_13.jpg", "lounge/lounge_14.jpg", "lounge/lounge_15.jpg", 
     //                                    "lounge/lounge_16.jpg"};
+    // const char *images[numOfImages] = {"lounge_small/lounge_1.jpg", "lounge_small/lounge_2.jpg", "lounge_small/lounge_3.jpg",
+    //                                    "lounge_small/lounge_4.jpg", "lounge_small/lounge_5.jpg", "lounge_small/lounge_6.jpg",
+    //                                    "lounge_small/lounge_7.jpg", "lounge_small/lounge_8.jpg", "lounge_small/lounge_9.jpg", 
+    //                                    "lounge_small/lounge_10.jpg", "lounge_small/lounge_11.jpg", "lounge_small/lounge_12.jpg", 
+    //                                    "lounge_small/lounge_13.jpg", "lounge_small/lounge_14.jpg", "lounge_small/lounge_15.jpg", 
+    //                                    "lounge_small/lounge_16.jpg"};
+    // const char *images[numOfImages] = {"lounge_mini/lounge_1.jpg", "lounge_mini/lounge_2.jpg", "lounge_mini/lounge_3.jpg",
+    //                                    "lounge_mini/lounge_4.jpg", "lounge_mini/lounge_5.jpg", "lounge_mini/lounge_6.jpg",
+    //                                    "lounge_mini/lounge_7.jpg", "lounge_mini/lounge_8.jpg", "lounge_mini/lounge_9.jpg", 
+    //                                    "lounge_mini/lounge_10.jpg", "lounge_mini/lounge_11.jpg", "lounge_mini/lounge_12.jpg", 
+    //                                    "lounge_mini/lounge_13.jpg", "lounge_mini/lounge_14.jpg", "lounge_mini/lounge_15.jpg", 
+    //                                    "lounge_mini/lounge_16.jpg"};
     Mat imgs[MAX_IMG];
     Mat imgs_color[MAX_IMG];
     vector<KeyPoint> keypoints[MAX_IMG];
@@ -275,12 +287,12 @@ int main()
     for (int i = 0; i < numOfImages; i++) {
         Mat img = imgs_color[i];        
        
-        resize(img, img, Size(img.cols / 3, img.rows / 3));
-        copyMakeBorder(img, img, 100, 100, 100, 100, BORDER_CONSTANT);
+        // resize(img, img, Size(img.cols / 3, img.rows / 3));
+        // copyMakeBorder(img, img, 100, 100, 100, 100, BORDER_CONSTANT);
         
         img = cylindrical(img);
         imgs_color[i] = img;
-        cvtColor(img, img, COLOR_BGR2GRAY);
+        // cvtColor(img, img, COLOR_BGR2GRAY);
         imgs[i] = img;
     }
 
@@ -288,98 +300,98 @@ int main()
 
     cylindricalDuration = duration_cast<milliseconds>(cylindricalStop - cylindricalStart).count();
 
-    auto keypointStart = high_resolution_clock::now();
+    // auto keypointStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared) schedule(dynamic)
-    for (int i = 0; i < numOfImages; i++) {
-        findKeyPoints(imgs[i], keypoints[i], descriptors[i]);
-    }
+    // #pragma omp parallel for default(shared) schedule(dynamic)
+    // for (int i = 0; i < numOfImages; i++) {
+    //     findKeyPoints(imgs[i], keypoints[i], descriptors[i]);
+    // }
 
-    auto keypointStop = high_resolution_clock::now();
+    // auto keypointStop = high_resolution_clock::now();
 
-    keypointsDuration = duration_cast<milliseconds>(keypointStop - keypointStart).count();
+    // keypointsDuration = duration_cast<milliseconds>(keypointStop - keypointStart).count();
 
-    vector<DMatch> matches[MAX_IMG - 1];
-    auto matchStart = high_resolution_clock::now();
+    // vector<DMatch> matches[MAX_IMG - 1];
+    // auto matchStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared) schedule(dynamic)
-    for (int i = 0; i < numOfImages - 1; i++) {
-        matchKeyPoints(descriptors[i], descriptors[i+1], matches[i]);
-    }
-    auto matchStop = high_resolution_clock::now();
+    // #pragma omp parallel for default(shared) schedule(dynamic)
+    // for (int i = 0; i < numOfImages - 1; i++) {
+    //     matchKeyPoints(descriptors[i], descriptors[i+1], matches[i]);
+    // }
+    // auto matchStop = high_resolution_clock::now();
 
-    matchDuration = duration_cast<milliseconds>(matchStop - matchStart).count();
+    // matchDuration = duration_cast<milliseconds>(matchStop - matchStart).count();
 
-    Mat homographies[MAX_IMG - 1];
+    // Mat homographies[MAX_IMG - 1];
 
-    auto transformStart = high_resolution_clock::now();
+    // auto transformStart = high_resolution_clock::now();
 
-    #pragma omp parallel for default(shared) schedule(dynamic)
-    for (int i = 0; i < numOfImages - 1; i++){
-        getHomography(keypoints[i], keypoints[i+1], matches[i], homographies[i]);
-    }
+    // #pragma omp parallel for default(shared) schedule(dynamic)
+    // for (int i = 0; i < numOfImages - 1; i++){
+    //     getHomography(keypoints[i], keypoints[i+1], matches[i], homographies[i]);
+    // }
 
-    auto transformStop = high_resolution_clock::now();
+    // auto transformStop = high_resolution_clock::now();
 
-    transformDuration = duration_cast<milliseconds>(transformStop - transformStart).count();
+    // transformDuration = duration_cast<milliseconds>(transformStop - transformStart).count();
 
-    auto stitchStart = high_resolution_clock::now();
+    // auto stitchStart = high_resolution_clock::now();
     
-    Mat results[MAX_IMG / 2];
-    Mat warps[MAX_IMG / 2];
+    // Mat results[MAX_IMG / 2];
+    // Mat warps[MAX_IMG / 2];
 
-    for (int i = 0; i < numOfImages; i++) {
-        results[i] = imgs_color[i];
-    }
+    // for (int i = 0; i < numOfImages; i++) {
+    //     results[i] = imgs_color[i];
+    // }
 
-    for (int i = numOfImages; i > 1; i /= 2){
-        #pragma omp parallel for default(shared)
-        for (int j = 0; j < i / 2; j++) {
-            int mRows = max(results[j * 2].rows, results[j * 2 + 1].rows + int(homographies[j * 2].ptr<double>(1)[2]));
-            int mCols = results[j * 2 + 1].cols + int(homographies[j * 2].ptr<double>(0)[2]);
-            int midline = (results[j * 2].cols + int(homographies[j * 2].ptr<double>(0)[2])) / 2;
+    // for (int i = numOfImages; i > 1; i /= 2){
+    //     #pragma omp parallel for default(shared)
+    //     for (int j = 0; j < i / 2; j++) {
+    //         int mRows = max(results[j * 2].rows, results[j * 2 + 1].rows + int(homographies[j * 2].ptr<double>(1)[2]));
+    //         int mCols = results[j * 2 + 1].cols + int(homographies[j * 2].ptr<double>(0)[2]);
+    //         int midline = (results[j * 2].cols + int(homographies[j * 2].ptr<double>(0)[2])) / 2;
 
-            Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
-            warpAffine(results[j * 2 + 1], warp, homographies[j * 2], Size(mCols, mRows));
-            stitch(results[j * 2], warp, midline);
+    //         Mat warp = Mat::zeros(mRows, mCols, CV_8UC3);
+    //         // warpAffine(results[j * 2 + 1], warp, homographies[j * 2], Size(mCols, mRows));
+    //         stitch(results[j * 2], warp, midline);
 
-            warps[j] = warp;    
-        }
+    //         warps[j] = warp;    
+    //     }
 
-        for (int j = 0; j < i / 2; j++) {
-            results[j] = warps[j];
-            if (j != i / 2 - 1) {
-                homographies[j].ptr<double>(0)[2] = homographies[j * 2].ptr<double>(0)[2] + homographies[j * 2 + 1].ptr<double>(0)[2];
-                homographies[j].ptr<double>(1)[2] = homographies[j * 2].ptr<double>(1)[2] + homographies[j * 2 + 1].ptr<double>(1)[2];
-            }
-        }
-    }
+    //     for (int j = 0; j < i / 2; j++) {
+    //         results[j] = warps[j];
+    //         if (j != i / 2 - 1) {
+    //             homographies[j].ptr<double>(0)[2] = homographies[j * 2].ptr<double>(0)[2] + homographies[j * 2 + 1].ptr<double>(0)[2];
+    //             homographies[j].ptr<double>(1)[2] = homographies[j * 2].ptr<double>(1)[2] + homographies[j * 2 + 1].ptr<double>(1)[2];
+    //         }
+    //     }
+    // }
 
-    auto stitchStop = high_resolution_clock::now();
+    // auto stitchStop = high_resolution_clock::now();
 
-    stitchDuration = duration_cast<milliseconds>(stitchStop - stitchStart).count();
+    // stitchDuration = duration_cast<milliseconds>(stitchStop - stitchStart).count();
 
-    auto cropStart = high_resolution_clock::now();
+    // auto cropStart = high_resolution_clock::now();
 
-    results[0] = cropImage(results[0]);
+    // results[0] = cropImage(results[0]);
 
-    auto cropEnd = high_resolution_clock::now();
+    // auto cropEnd = high_resolution_clock::now();
 
-    cropDuration = duration_cast<milliseconds>(cropEnd - cropStart).count();
+    // cropDuration = duration_cast<milliseconds>(cropEnd - cropStart).count();
 
-    auto compEnd = high_resolution_clock::now();
+    // auto compEnd = high_resolution_clock::now();
 
     // imwrite("uc/parallel_v2.jpg", results[0]);
-    imwrite("lounge/parallel_v2.jpg", results[0]);
+    // imwrite("lounge/parallel_v2.jpg", results[0]);
     // imwrite("tepper/parallel_v2.jpg", results[0]);
 
     auto allEnd = high_resolution_clock::now();
 
-    auto compDuration = duration_cast<milliseconds>(compEnd - compStart).count();
+    // auto compDuration = duration_cast<milliseconds>(compEnd - compStart).count();
     auto duration = duration_cast<milliseconds>(allEnd - allStart).count();
 
     cout << "Total Elapsed Time: " << duration << " ms" << endl;
-    cout << "Computational Time " << compDuration << " ms" << endl;
+    // cout << "Computational Time " << compDuration << " ms" << endl;
     cout << "Cylindrical: " << cylindricalDuration << " ms" << endl;
     cout << "Keypoints: " << keypointsDuration << " ms" << endl;
     cout << "Matching: " << matchDuration << " ms" << endl;
